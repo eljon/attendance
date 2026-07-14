@@ -2,15 +2,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Attendance Check-In</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%85</text></svg>" />
-<link rel="stylesheet" href="assets/styles.css?v=4" />
+<link rel="stylesheet" href="assets/styles.css?v=5" />
+
+<!-- Animated parallax backdrop -->
+<div class="scene" aria-hidden="true">
+  <span class="orb orb-1" data-depth="0.30"></span>
+  <span class="orb orb-2" data-depth="0.55"></span>
+  <span class="orb orb-3" data-depth="0.22"></span>
+  <span class="orb orb-4" data-depth="0.42"></span>
+  <span class="grain"></span>
+</div>
 
 <div class="app">
-  <header class="app-header">
-    <h1>Attendance Check-In</h1>
+  <header class="app-header" id="app-header">
+    <span class="eyebrow">Sunday Attendance</span>
+    <h1>Check-In</h1>
     <p class="subtitle">Report that you've checked the Sunday attendance</p>
   </header>
 
   <nav class="tabs" role="tablist">
+    <span class="tab-indicator" aria-hidden="true"></span>
     <button class="tab is-active" role="tab" data-tab="checkin" aria-selected="true">
       Check In
     </button>
@@ -40,6 +51,12 @@
       <!-- Progress ring -->
       <div class="progress-row">
         <svg class="donut" viewBox="0 0 36 36" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#1282A2" />
+              <stop offset="1" stop-color="#034078" />
+            </linearGradient>
+          </defs>
           <circle class="donut-track" cx="18" cy="18" r="15.9155"></circle>
           <circle class="donut-fill" id="donut-fill" cx="18" cy="18" r="15.9155"></circle>
           <text class="donut-pct" id="donut-pct" x="18" y="19">0%</text>
@@ -62,7 +79,9 @@
         <p id="all-done-note" class="all-done-note" hidden>✓ All organizations are checked for this week.</p>
       </fieldset>
 
-      <button type="submit" id="submit-btn" class="btn btn-primary">Submit</button>
+      <button type="submit" id="submit-btn" class="btn btn-primary">
+        <span>Submit</span>
+      </button>
       <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
     </form>
   </section>
@@ -89,5 +108,5 @@
   </footer>
 </div>
 
-<script src="config.js?v=4"></script>
-<script src="assets/app.js?v=4"></script>
+<script src="config.js?v=5"></script>
+<script src="assets/app.js?v=5"></script>

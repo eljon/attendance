@@ -83,6 +83,7 @@ tabs.forEach((tab) => {
       el.classList.toggle("is-active", active);
       el.hidden = !active;
     });
+    document.querySelector(".tabs").dataset.active = target;
     if (target === "history") renderHistory();
   });
 });
@@ -337,6 +338,31 @@ function escapeHtml(str) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
 }
+
+// ── Parallax backdrop + header drift ─────────────────────────
+(function parallax() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const orbs = [...document.querySelectorAll(".scene .orb")];
+  const header = document.getElementById("app-header");
+  let mx = 0, my = 0, sy = 0, raf = 0;
+
+  function apply() {
+    raf = 0;
+    orbs.forEach((o) => {
+      const d = parseFloat(o.dataset.depth || "0.3");
+      o.style.transform = `translate3d(${mx * d * 46}px, ${my * d * 46 + sy * d * 0.35}px, 0)`;
+    });
+    if (header) header.style.transform = `translateY(${sy * -0.12}px)`;
+  }
+  function schedule() { if (!raf) raf = requestAnimationFrame(apply); }
+
+  window.addEventListener("mousemove", (e) => {
+    mx = (e.clientX / window.innerWidth - 0.5) * 2;
+    my = (e.clientY / window.innerHeight - 0.5) * 2;
+    schedule();
+  }, { passive: true });
+  window.addEventListener("scroll", () => { sy = window.scrollY; schedule(); }, { passive: true });
+})();
 
 // ── Init ─────────────────────────────────────────────────────
 renderCheckin();
