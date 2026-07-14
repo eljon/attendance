@@ -162,7 +162,6 @@ function orgItemNode(org, names) {
 // ── Check-In tab rendering ───────────────────────────────────
 const orgList = document.getElementById("org-list");
 const orgError = document.getElementById("org-error");
-const allDoneNote = document.getElementById("all-done-note");
 const nameField = document.querySelector(".field-name");
 const weekDateEl = document.getElementById("week-date");
 const weekRelEl = document.getElementById("week-rel");
@@ -215,16 +214,14 @@ function renderCheckin() {
   setProgress(doneCount);
   const allDone = doneCount === TOTAL;
   const allDoneTop = document.getElementById("all-done-top");
-  // Celebration only shows for a fully-checked week; it clears automatically
-  // when navigating to a week that isn't complete.
-  allDoneNote.hidden = !allDone;
+  // Single celebration at the top; only for a fully-checked week — it clears
+  // automatically when navigating to a week that isn't complete.
   allDoneTop.hidden = !allDone;
   if (allDone) {
     const ago = weeksAgo(selectedWeek);
     const when = ago === 0 ? "this week" : `the week of ${shortDate(selectedWeek)}`;
-    const msg = `Every one of the ${TOTAL} organizations has reported for ${when}. Thank you, Kalayaan Ward! 🙌`;
-    document.getElementById("all-done-sub").textContent = msg;
-    document.getElementById("all-done-top-sub").textContent = msg;
+    document.getElementById("all-done-top-sub").textContent =
+      `Every one of the ${TOTAL} organizations has reported for ${when}. Thank you, Kalayaan Ward! 🙌`;
   }
   document.querySelector(".donut").classList.toggle("complete", allDone);
   // Nothing to submit when the week is already complete — hide the name field
