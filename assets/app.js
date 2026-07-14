@@ -3,22 +3,16 @@
    Talks to a Google Apps Script Web App (see README.md).
    ────────────────────────────────────────────────────────────── */
 
-// Organizations, kept in alphabetical order.
-const ORGANIZATIONS = [
-  "Bishopric",
-  "Builders of Faith",
-  "Deacons",
-  "Elders Quorum",
-  "Gatherers of Light",
-  "Married",
-  "Messengers of Hope",
-  "Missionaries in the Field",
-  "Primary",
-  "Priests",
-  "Relief Society",
-  "Single Adults",
-  "Teachers",
-].sort((a, b) => a.localeCompare(b));
+// Organizations grouped into divisions. Order is intentional — do NOT sort.
+const DIVISIONS = [
+  { name: "Adults",      orgs: ["Elders Quorum", "Relief Society", "Single Adults", "Married"] },
+  { name: "Young Men",   orgs: ["Deacons", "Teachers", "Priests"] },
+  { name: "Young Women", orgs: ["Builders of Faith", "Messengers of Hope", "Gatherers of Light"] },
+  { name: "Children",    orgs: ["Primary", "Nursery"] },
+  { name: "Others",      orgs: ["Bishopric", "Missionaries in the Field"] },
+];
+// Flat list (in division order) for counts and matrix rows.
+const ORGANIZATIONS = DIVISIONS.flatMap((d) => d.orgs);
 const TOTAL = ORGANIZATIONS.length;
 
 const WEB_APP_URL = (window.CONFIG && window.CONFIG.WEB_APP_URL) || "";
@@ -127,6 +121,34 @@ function uniqueNames(names) {
   return [...new Set(names)].join(", ");
 }
 
+// Build one organization row for the Check-In list: a static "checked"
+// card (with who checked it) or a clickable checkbox.
+function orgItemNode(org, names) {
+  if (names && names.length) {
+    const div = document.createElement("div");
+    div.className = "org-item done";
+    div.innerHTML = `
+      <span class="org-check" aria-hidden="true">✓</span>
+      <span class="org-body">
+        <span class="org-name">${escapeHtml(org)}</span>
+        <span class="who">by ${escapeHtml(uniqueNames(names))}</span>
+      </span>
+      <span class="badge badge-done">Checked</span>`;
+    return div;
+  }
+  const label = document.createElement("label");
+  label.className = "org-item";
+  label.innerHTML = `
+    <input type="checkbox" name="organization" value="${escapeHtml(org)}" />
+    <span class="org-name">${escapeHtml(org)}</span>`;
+  const input = label.querySelector("input");
+  input.addEventListener("change", () => {
+    label.classList.toggle("checked", input.checked);
+    orgError.hidden = true;
+  });
+  return label;
+}
+
 // ── Check-In tab rendering ───────────────────────────────────
 const orgList = document.getElementById("org-list");
 const orgError = document.getElementById("org-error");
@@ -161,34 +183,22 @@ function renderCheckin() {
   const checkedBy = checkedByForWeek(selectedWeek);
   const doneCount = ORGANIZATIONS.filter((o) => checkedBy[o] && checkedBy[o].length).length;
 
-  // Organization list
+  // Organization list, grouped by division
   orgList.innerHTML = "";
-  ORGANIZATIONS.forEach((org) => {
-    const names = checkedBy[org];
-    if (names && names.length) {
-      const div = document.createElement("div");
-      div.className = "org-item done";
-      div.innerHTML = `
-        <span class="org-check" aria-hidden="true">✓</span>
-        <span class="org-body">
-          <span class="org-name">${escapeHtml(org)}</span>
-          <span class="who">by ${escapeHtml(uniqueNames(names))}</span>
-        </span>
-        <span class="badge badge-done">Checked</span>`;
-      orgList.appendChild(div);
-    } else {
-      const label = document.createElement("label");
-      label.className = "org-item";
-      label.innerHTML = `
-        <input type="checkbox" name="organization" value="${escapeHtml(org)}" />
-        <span class="org-name">${escapeHtml(org)}</span>`;
-      const input = label.querySelector("input");
-      input.addEventListener("change", () => {
-        label.classList.toggle("checked", input.checked);
-        orgError.hidden = true;
-      });
-      orgList.appendChild(label);
-    }
+  DIVISIONS.forEach((div) => {
+    const doneInDiv = div.orgs.filter((o) => checkedBy[o] && checkedBy[o].length).length;
+    const section = document.createElement("div");
+    section.className = "division";
+    section.innerHTML = `
+      <div class="division-head">
+        <span class="division-name">${escapeHtml(div.name)}</span>
+        <span class="division-count${doneInDiv === div.orgs.length ? " complete" : ""}">${doneInDiv}/${div.orgs.length}</span>
+      </div>`;
+    const grid = document.createElement("div");
+    grid.className = "org-grid";
+    div.orgs.forEach((org) => grid.appendChild(orgItemNode(org, checkedBy[org])));
+    section.appendChild(grid);
+    orgList.appendChild(section);
   });
 
   setProgress(doneCount);
@@ -293,16 +303,23 @@ function renderHistory() {
     </th>`;
   }).join("");
 
-  const body = ORGANIZATIONS.map((org) => {
-    const cells = weeks.map((w) => {
-      const names = byWeek[w][org];
-      if (names && names.length) {
-        return `<td class="cell yes" title="${escapeHtml(uniqueNames(names))}">
-          <span class="tick">✓</span></td>`;
-      }
-      return `<td class="cell no"><span class="cross">·</span></td>`;
+  const body = DIVISIONS.map((div) => {
+    const sep = `<tr class="div-sep">
+      <th class="rowhead div-name" scope="rowgroup">${escapeHtml(div.name)}</th>
+      ${weeks.map(() => `<td class="div-fill"></td>`).join("")}
+    </tr>`;
+    const rows = div.orgs.map((org) => {
+      const cells = weeks.map((w) => {
+        const names = byWeek[w][org];
+        if (names && names.length) {
+          return `<td class="cell yes" title="${escapeHtml(uniqueNames(names))}">
+            <span class="tick">✓</span></td>`;
+        }
+        return `<td class="cell no"><span class="cross">·</span></td>`;
+      }).join("");
+      return `<tr><th class="rowhead" scope="row">${escapeHtml(org)}</th>${cells}</tr>`;
     }).join("");
-    return `<tr><th class="rowhead" scope="row">${escapeHtml(org)}</th>${cells}</tr>`;
+    return sep + rows;
   }).join("");
 
   historyGrid.innerHTML = `

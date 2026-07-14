@@ -103,12 +103,22 @@ marks an organization **Checked** if any check-in for that week includes it, or
 | `config.js`          | Where you paste your Web App URL |
 | `apps-script/Code.gs`| Google Apps Script backend (paste into the Sheet) |
 
-## Editing the organization list
+## Editing the organizations / divisions
 
-The list lives in two places — keep them in sync:
+Organizations are grouped into **divisions** (Adults, Young Men, Young Women,
+Children, Others). Edit the `DIVISIONS` array near the top of `assets/app.js`:
 
-- `assets/app.js` → the `ORGANIZATIONS` array (drives the checkboxes and the
-  status board). It is sorted alphabetically automatically.
+```js
+const DIVISIONS = [
+  { name: "Adults", orgs: ["Elders Quorum", "Relief Society", ...] },
+  ...
+];
+```
+
+The order you write is the order shown — the list is **not** sorted. Add or
+remove a division by editing an object; add or remove an organization by editing
+its `orgs` array. Everything else (checkboxes, per-division counts, progress
+ring, history matrix) updates automatically.
 
 No change is needed in the Sheet or `Code.gs`; organizations are stored as plain
 text.

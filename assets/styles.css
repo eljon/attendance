@@ -147,9 +147,36 @@ input[type="text"]:focus { outline: 2px solid var(--brand); border-color: var(--
 .progress-text strong { font-size: 1.35rem; }
 .progress-sub { display: block; color: var(--muted); font-size: .85rem; }
 
-/* Organization list */
-.org-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-@media (max-width: 520px) { .org-list { grid-template-columns: 1fr; } }
+/* Organization list, grouped by division */
+.org-list { display: flex; flex-direction: column; gap: 18px; }
+.division-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.division-name {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--brand);
+}
+.division-count {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: #eef2fb;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.division-count.complete { color: #fff; background: var(--yes); }
+
+.org-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 520px) { .org-grid { grid-template-columns: 1fr; } }
 
 .org-item {
   display: flex;
@@ -250,6 +277,18 @@ input[type="text"]:focus { outline: 2px solid var(--brand); border-color: var(--
 
 .matrix tbody tr:hover .rowhead,
 .matrix tbody tr:hover .cell { background: #f7f9fe; }
+
+/* Division separator rows in the matrix */
+.div-sep .div-name {
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-size: .72rem;
+  color: var(--brand);
+  background: #eef2fb;
+  padding-top: 10px;
+  padding-bottom: 6px;
+}
+.div-sep .div-fill { background: #eef2fb; border-bottom: 1px solid var(--line); }
 
 .cell { text-align: center; padding: 9px 6px; }
 .cell.yes { background: var(--yes-bg); }
