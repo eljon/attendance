@@ -29,6 +29,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* the attribute must win over class display rules */
 html { scroll-behavior: smooth; }
 
 body {
