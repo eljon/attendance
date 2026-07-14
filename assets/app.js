@@ -227,24 +227,15 @@ function setProgress(done) {
     ago === 0 ? "for this week" : `for week of ${shortDate(selectedWeek)}`;
 }
 
-// ── Remembered names (search suggestions) ────────────────────
-const NAMES_KEY = "attendance.names";
+// ── Name search suggestions ──────────────────────────────────
+// Based on everyone who has reported before — every distinct name in the
+// shared database. (New submissions are pushed into `records`, so a
+// just-added name appears here too.)
 const nameDatalist = document.getElementById("name-suggestions");
-
-function loadLocalNames() {
-  try { return JSON.parse(localStorage.getItem(NAMES_KEY) || "[]"); } catch { return []; }
-}
-function saveLocalName(name) {
-  const set = new Set(loadLocalNames());
-  set.add(name);
-  try { localStorage.setItem(NAMES_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
-}
-// Merge names typed on this device with every name in the database.
 function updateNameSuggestions() {
   if (!nameDatalist) return;
-  const set = new Set(loadLocalNames());
-  records.forEach((r) => { if (r.name) set.add(r.name); });
-  const names = [...set].sort((a, b) => a.localeCompare(b));
+  const names = [...new Set(records.map((r) => r.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
   nameDatalist.innerHTML = names.map((n) => `<option value="${escapeHtml(n)}"></option>`).join("");
 }
 
@@ -278,7 +269,6 @@ form.addEventListener("submit", async (e) => {
 
     // Reflect the new check-ins locally, then re-render.
     records.push({ timestamp: new Date().toISOString(), name, organizations: orgs, week: selectedWeek });
-    saveLocalName(name);
     updateNameSuggestions();
     setStatus(`✓ Recorded — thank you, ${name}!`, "ok");
     document.getElementById("name").value = name; // keep the name for further entries
