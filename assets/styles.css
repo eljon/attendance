@@ -377,6 +377,18 @@ input[type="text"]:focus, input[type="search"]:focus {
 .form-status.ok { color: var(--steel); }
 .form-status.err { color: var(--terra); }
 
+/* Sticky submit bar — always visible at the bottom of the Check-In tab */
+#tab-checkin { padding-bottom: 86px; }
+.submit-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, #eae2d8 62%, rgba(234,226,216,.85) 82%, rgba(234,226,216,0));
+}
+.submit-bar-inner { max-width: 760px; margin: 0 auto; }
+.submit-bar .form-status { min-height: 0; margin: 0 0 8px; text-align: center; }
+.submit-bar .form-status:empty { display: none; }
+.submit-bar .btn-primary { display: block; }
+
 /* ── History ────────────────────────────────────────────────── */
 .history-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .legend { display: flex; gap: 18px; margin-bottom: 16px; font-size: .85rem; color: var(--text-dim); }

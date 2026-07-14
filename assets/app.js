@@ -227,8 +227,8 @@ function renderCheckin() {
   // Nothing to submit when the week is already complete — hide the name field
   // and submit button; they return for any not-yet-complete week.
   if (nameField) nameField.hidden = allDone;
-  submitBtn.hidden = allDone;
   submitBtn.disabled = allDone;
+  document.getElementById("submit-bar").hidden = allDone;   // nothing to submit when complete
 }
 
 function setProgress(done) {
