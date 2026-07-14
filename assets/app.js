@@ -214,6 +214,13 @@ function renderCheckin() {
   setProgress(doneCount);
   const allDone = doneCount === TOTAL;
   allDoneNote.hidden = !allDone;
+  if (allDone) {
+    const ago = weeksAgo(selectedWeek);
+    const when = ago === 0 ? "this week" : `the week of ${shortDate(selectedWeek)}`;
+    document.getElementById("all-done-sub").textContent =
+      `Every one of the ${TOTAL} organizations has reported for ${when}. Thank you, Kalayaan Ward! 🙌`;
+  }
+  document.querySelector(".donut").classList.toggle("complete", allDone);
   submitBtn.disabled = allDone;
 }
 
@@ -381,14 +388,28 @@ function renderHistory() {
   const byWeek = {};
   weeks.forEach((w) => (byWeek[w] = checkedByForWeek(w)));
 
+  const doneCountFor = (w) => ORGANIZATIONS.filter((o) => byWeek[w][o] && byWeek[w][o].length).length;
   const head = weeks.map((w) => {
-    const done = ORGANIZATIONS.filter((o) => byWeek[w][o] && byWeek[w][o].length).length;
+    const done = doneCountFor(w);
     const isNow = w === CURRENT_WEEK;
-    return `<th class="wk${isNow ? " wk-now" : ""}">
+    const complete = done === TOTAL;
+    return `<th class="wk${isNow ? " wk-now" : ""}${complete ? " wk-complete" : ""}">
       <span class="wk-date">${escapeHtml(shortDate(w))}</span>
-      <span class="wk-count">${done}/${TOTAL}</span>
+      <span class="wk-count">${complete ? "🎉 " : ""}${done}/${TOTAL}</span>
     </th>`;
   }).join("");
+
+  // Celebration banner when the current week is fully checked.
+  const nowDone = doneCountFor(CURRENT_WEEK);
+  document.getElementById("history-celebrate").innerHTML = nowDone === TOTAL
+    ? `<div class="celebrate">
+         <span class="celebrate-emoji">🎉</span>
+         <div class="celebrate-body">
+           <strong class="celebrate-title">This week is complete!</strong>
+           <span class="celebrate-sub">All ${TOTAL} organizations have reported their attendance. Great teamwork! 🙌</span>
+         </div>
+       </div>`
+    : "";
 
   const body = DIVISIONS.map((div) => {
     const sep = `<tr class="div-sep">

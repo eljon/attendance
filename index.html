@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Kalayaan Ward — Sunday Attendance</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%231282A2'/><stop offset='1' stop-color='%23034078'/></linearGradient></defs><rect width='64' height='64' rx='15' fill='url(%23g)'/><g fill='%23ffffff'><polygon points='23,7 19.5,27 26.5,27'/><rect x='19.5' y='25' width='7' height='6'/><polygon points='23,26 12,36 34,36'/><rect x='13' y='35' width='20' height='16' rx='1'/></g><circle cx='46' cy='45' r='13' fill='%23ffffff'/><path d='M39.5 45.5 l4.2 4.2 l8.3 -9.4' fill='none' stroke='%231282A2' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
-<link rel="stylesheet" href="assets/styles.css?v=13" />
+<link rel="stylesheet" href="assets/styles.css?v=14" />
 
 <!-- Animated parallax backdrop -->
 <div class="scene" aria-hidden="true">
@@ -83,7 +83,13 @@
           <p class="muted">Loading…</p>
         </div>
         <p id="org-error" class="error-text" hidden>Please select at least one organization.</p>
-        <p id="all-done-note" class="all-done-note" hidden>✓ All organizations are checked for this week.</p>
+        <div id="all-done-note" class="celebrate" hidden>
+          <span class="celebrate-emoji">🎉</span>
+          <div class="celebrate-body">
+            <strong class="celebrate-title">All checked!</strong>
+            <span class="celebrate-sub" id="all-done-sub"></span>
+          </div>
+        </div>
       </fieldset>
 
       <button type="submit" id="submit-btn" class="btn btn-primary">
@@ -104,6 +110,7 @@
         <span class="legend-item"><span class="dot dot-yes"></span> Checked</span>
         <span class="legend-item"><span class="dot dot-no"></span> Not checked yet</span>
       </div>
+      <div id="history-celebrate"></div>
       <div id="history-grid" class="grid-wrap" aria-live="polite">
         <p class="muted">Loading…</p>
       </div>
@@ -135,5 +142,5 @@
   </footer>
 </div>
 
-<script src="config.js?v=13"></script>
-<script src="assets/app.js?v=13"></script>
+<script src="config.js?v=14"></script>
+<script src="assets/app.js?v=14"></script>

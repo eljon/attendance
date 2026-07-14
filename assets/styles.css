@@ -316,7 +316,35 @@ input[type="text"]:focus, input[type="search"]:focus {
 .badge-done { color: #fff; background: linear-gradient(135deg, var(--steel), var(--blue)); box-shadow: var(--glow-steel); }
 
 .error-text { color: var(--terra); font-size: .88rem; margin: 12px 0 0; font-weight: 600; }
-.all-done-note { color: var(--steel); font-weight: 700; font-size: .9rem; margin: 12px 0 0; }
+/* Celebration banner (all organizations checked) */
+.celebrate {
+  display: flex; align-items: center; gap: 14px;
+  margin: 14px 0 0; padding: 15px 16px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgba(18,130,162,.16), rgba(198,122,38,.15) 55%, rgba(31,157,85,.16));
+  border: 1px solid rgba(18,130,162,.35);
+  box-shadow: 0 8px 24px rgba(18,130,162,.16);
+  overflow: hidden; position: relative;
+  animation: celebrateIn .55s cubic-bezier(.2,1.35,.4,1) both;
+}
+.celebrate::after {          /* soft sweeping shine */
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.5) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: shine 2.6s ease-in-out .4s infinite;
+}
+.celebrate-emoji { font-size: 1.8rem; line-height: 1; flex: none; animation: bob 1.6s ease-in-out infinite; }
+.celebrate-body { display: flex; flex-direction: column; gap: 2px; position: relative; z-index: 1; }
+.celebrate-title { font-weight: 800; color: var(--ink); font-size: 1.02rem; }
+.celebrate-sub { color: var(--text); font-size: .88rem; }
+@keyframes celebrateIn { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-4px) rotate(4deg); } }
+@keyframes shine { 0% { transform: translateX(-120%); } 55%,100% { transform: translateX(120%); } }
+
+#history-celebrate { margin-bottom: 14px; }
+#history-celebrate:empty { display: none; margin: 0; }
+
+.donut.complete { filter: drop-shadow(0 0 10px rgba(31,157,85,.55)); }
 
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn { position: relative; border: 0; border-radius: 13px; padding: 14px 18px; font-size: 1rem; font-weight: 800; cursor: pointer; overflow: hidden; }
@@ -377,6 +405,11 @@ input[type="text"]:focus, input[type="search"]:focus {
 .wk-date { display: block; font-weight: 800; color: var(--ink); }
 .wk-count { display: block; font-size: .74rem; color: var(--text-dim); font-weight: 700; }
 .wk-now .wk-date, .wk-now .wk-count { color: var(--steel); }
+.wk-complete {
+  background: linear-gradient(180deg, rgba(31,157,85,.16), rgba(18,130,162,.10)) !important;
+  box-shadow: inset 0 -2px 0 rgba(31,157,85,.55);
+}
+.wk-complete .wk-count { color: #0f7a45; font-weight: 800; }
 
 .div-sep .div-name {
   text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 800;
