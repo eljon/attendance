@@ -1,0 +1,80 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Attendance Check-In</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%85</text></svg>" />
+<link rel="stylesheet" href="assets/styles.css" />
+
+<div class="app">
+  <header class="app-header">
+    <h1>Attendance Check-In</h1>
+    <p class="subtitle">Report that you've checked the Sunday attendance</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" role="tab" data-tab="checkin" aria-selected="true">
+      Check In
+    </button>
+    <button class="tab" role="tab" data-tab="history" aria-selected="false">
+      History
+    </button>
+  </nav>
+
+  <!-- ───────────────────────── Check In ───────────────────────── -->
+  <section id="tab-checkin" class="panel is-active" role="tabpanel">
+    <form id="checkin-form" class="card" novalidate>
+      <label class="field">
+        <span class="field-label">Your name</span>
+        <input type="text" id="name" name="name" autocomplete="name"
+               placeholder="e.g. John Smith" required />
+      </label>
+
+      <fieldset class="field">
+        <legend class="field-label">
+          Organizations checked
+          <span class="hint">— select all that apply</span>
+        </legend>
+        <div id="org-list" class="org-list"><!-- checkboxes injected by JS --></div>
+        <p id="org-error" class="error-text" hidden>Please select at least one organization.</p>
+      </fieldset>
+
+      <button type="submit" id="submit-btn" class="btn btn-primary">Submit</button>
+      <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <!-- ───────────────────────── History ───────────────────────── -->
+  <section id="tab-history" class="panel" role="tabpanel" hidden>
+    <div class="card">
+      <div class="history-head">
+        <div>
+          <h2 class="card-title">This week</h2>
+          <p id="week-label" class="week-label"></p>
+        </div>
+        <button id="refresh-btn" class="btn btn-ghost" type="button">Refresh</button>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><span class="dot dot-yes"></span> Checked</span>
+        <span class="legend-item"><span class="dot dot-no"></span> Not checked</span>
+      </div>
+
+      <div id="status-board" class="status-board" aria-live="polite">
+        <p class="muted">Loading…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">All check-ins</h2>
+      <div id="history-list" class="history-list">
+        <p class="muted">Loading…</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="app-footer">
+    <span id="conn-status" class="muted"></span>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="assets/app.js"></script>
