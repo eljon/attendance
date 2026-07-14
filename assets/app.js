@@ -19,13 +19,18 @@ const ORGANIZATIONS = [
   "Single Adults",
   "Teachers",
 ].sort((a, b) => a.localeCompare(b));
+const TOTAL = ORGANIZATIONS.length;
 
 const WEB_APP_URL = (window.CONFIG && window.CONFIG.WEB_APP_URL) || "";
 const IS_CONFIGURED = WEB_APP_URL && !WEB_APP_URL.startsWith("PASTE_");
 
+// ── State ────────────────────────────────────────────────────
+let records = [];                         // all check-ins from the backend
+const CURRENT_WEEK = sundayOf(new Date()); // this week's Sunday (ISO)
+let selectedWeek = CURRENT_WEEK;           // week shown in the Check-In tab
+let loaded = false;
+
 // ── Date helpers ─────────────────────────────────────────────
-// Returns the Sunday that starts the week containing `date`,
-// formatted as an ISO date string (YYYY-MM-DD) in local time.
 function sundayOf(date) {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   d.setDate(d.getDate() - d.getDay()); // getDay(): 0 = Sunday
@@ -35,13 +40,27 @@ function toISODate(d) {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
-function prettyDate(iso) {
-  // iso: YYYY-MM-DD → "Sunday, Jul 13, 2026"
+function shiftWeek(iso, deltaWeeks) {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString(undefined, {
+  dt.setDate(dt.getDate() + deltaWeeks * 7);
+  return toISODate(dt);
+}
+function weeksAgo(iso) {
+  const [y1, m1, d1] = CURRENT_WEEK.split("-").map(Number);
+  const [y2, m2, d2] = iso.split("-").map(Number);
+  const ms = new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2);
+  return Math.round(ms / (7 * 864e5));
+}
+function prettyDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
     weekday: "long", month: "short", day: "numeric", year: "numeric",
   });
+}
+function shortDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 function prettyDateTime(value) {
   const dt = new Date(value);
@@ -57,8 +76,6 @@ const panels = {
   checkin: document.getElementById("tab-checkin"),
   history: document.getElementById("tab-history"),
 };
-let historyLoadedOnce = false;
-
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     const target = tab.dataset.tab;
@@ -72,26 +89,8 @@ tabs.forEach((tab) => {
       el.classList.toggle("is-active", active);
       el.hidden = !active;
     });
-    if (target === "history") {
-      loadHistory({ force: !historyLoadedOnce });
-    }
+    if (target === "history") renderHistory();
   });
-});
-
-// ── Build the organization checkboxes ────────────────────────
-const orgList = document.getElementById("org-list");
-ORGANIZATIONS.forEach((org) => {
-  const label = document.createElement("label");
-  label.className = "org-item";
-  label.innerHTML = `
-    <input type="checkbox" name="organization" value="${escapeHtml(org)}" />
-    <span>${escapeHtml(org)}</span>`;
-  const input = label.querySelector("input");
-  input.addEventListener("change", () => {
-    label.classList.toggle("checked", input.checked);
-    document.getElementById("org-error").hidden = true;
-  });
-  orgList.appendChild(label);
 });
 
 // ── Config banner ────────────────────────────────────────────
@@ -104,43 +103,129 @@ if (!IS_CONFIGURED) {
   document.querySelector(".app").insertBefore(banner, document.querySelector(".tabs"));
 }
 
-// ── Submit check-in ──────────────────────────────────────────
-const form = document.getElementById("checkin-form");
+// ── Data ─────────────────────────────────────────────────────
+async function loadRecords() {
+  if (!IS_CONFIGURED) { loaded = true; return; }
+  const res = await fetch(WEB_APP_URL + "?action=history", { redirect: "follow" });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Failed to load history.");
+  records = data.records || [];
+  loaded = true;
+}
+
+// org -> array of names who checked it for the given week
+function checkedByForWeek(week) {
+  const map = {};
+  records.filter((r) => r.week === week).forEach((r) => {
+    (r.organizations || []).forEach((org) => {
+      (map[org] = map[org] || []).push(r.name);
+    });
+  });
+  return map;
+}
+function uniqueNames(names) {
+  return [...new Set(names)].join(", ");
+}
+
+// ── Check-In tab rendering ───────────────────────────────────
+const orgList = document.getElementById("org-list");
+const orgError = document.getElementById("org-error");
+const allDoneNote = document.getElementById("all-done-note");
+const weekDateEl = document.getElementById("week-date");
+const weekRelEl = document.getElementById("week-rel");
+const weekPrev = document.getElementById("week-prev");
+const weekNext = document.getElementById("week-next");
 const submitBtn = document.getElementById("submit-btn");
+
+weekPrev.addEventListener("click", () => { selectedWeek = shiftWeek(selectedWeek, -1); clearStatus(); renderCheckin(); });
+weekNext.addEventListener("click", () => {
+  if (selectedWeek >= CURRENT_WEEK) return;
+  selectedWeek = shiftWeek(selectedWeek, 1);
+  clearStatus();
+  renderCheckin();
+});
+
+function renderCheckin() {
+  // Week navigator
+  weekDateEl.textContent = prettyDate(selectedWeek);
+  const ago = weeksAgo(selectedWeek);
+  weekRelEl.textContent = ago === 0 ? "This week" : ago === 1 ? "1 week ago" : `${ago} weeks ago`;
+  weekNext.disabled = selectedWeek >= CURRENT_WEEK;
+
+  if (!loaded) {
+    orgList.innerHTML = `<p class="muted">Loading…</p>`;
+    setProgress(0);
+    return;
+  }
+
+  const checkedBy = checkedByForWeek(selectedWeek);
+  const doneCount = ORGANIZATIONS.filter((o) => checkedBy[o] && checkedBy[o].length).length;
+
+  // Organization list
+  orgList.innerHTML = "";
+  ORGANIZATIONS.forEach((org) => {
+    const names = checkedBy[org];
+    if (names && names.length) {
+      const div = document.createElement("div");
+      div.className = "org-item done";
+      div.innerHTML = `
+        <span class="org-check" aria-hidden="true">✓</span>
+        <span class="org-body">
+          <span class="org-name">${escapeHtml(org)}</span>
+          <span class="who">by ${escapeHtml(uniqueNames(names))}</span>
+        </span>
+        <span class="badge badge-done">Checked</span>`;
+      orgList.appendChild(div);
+    } else {
+      const label = document.createElement("label");
+      label.className = "org-item";
+      label.innerHTML = `
+        <input type="checkbox" name="organization" value="${escapeHtml(org)}" />
+        <span class="org-name">${escapeHtml(org)}</span>`;
+      const input = label.querySelector("input");
+      input.addEventListener("change", () => {
+        label.classList.toggle("checked", input.checked);
+        orgError.hidden = true;
+      });
+      orgList.appendChild(label);
+    }
+  });
+
+  setProgress(doneCount);
+  const allDone = doneCount === TOTAL;
+  allDoneNote.hidden = !allDone;
+  submitBtn.disabled = allDone;
+}
+
+function setProgress(done) {
+  const pct = TOTAL ? Math.round((done / TOTAL) * 100) : 0;
+  document.getElementById("donut-fill").style.strokeDasharray = `${pct} 100`;
+  document.getElementById("donut-pct").textContent = pct + "%";
+  document.getElementById("progress-count").textContent = `${done}/${TOTAL}`;
+  const ago = weeksAgo(selectedWeek);
+  document.getElementById("progress-sub").textContent =
+    ago === 0 ? "for this week" : `for week of ${shortDate(selectedWeek)}`;
+}
+
+// ── Submit ───────────────────────────────────────────────────
+const form = document.getElementById("checkin-form");
 const formStatus = document.getElementById("form-status");
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  formStatus.textContent = "";
-  formStatus.className = "form-status";
+  clearStatus();
 
   const name = document.getElementById("name").value.trim();
   const orgs = [...form.querySelectorAll('input[name="organization"]:checked')].map((i) => i.value);
 
-  if (!name) {
-    setStatus("Please enter your name.", "err");
-    return;
-  }
-  if (orgs.length === 0) {
-    document.getElementById("org-error").hidden = false;
-    return;
-  }
-  if (!IS_CONFIGURED) {
-    setStatus("Backend not configured — see README.md.", "err");
-    return;
-  }
+  if (!name) { setStatus("Please enter your name.", "err"); return; }
+  if (orgs.length === 0) { orgError.hidden = false; return; }
+  if (!IS_CONFIGURED) { setStatus("Backend not configured — see README.md.", "err"); return; }
 
   submitBtn.disabled = true;
   submitBtn.textContent = "Submitting…";
-
   try {
-    const payload = {
-      action: "checkin",
-      name,
-      organizations: orgs,
-      week: sundayOf(new Date()),
-    };
-    // text/plain avoids a CORS pre-flight; Apps Script returns JSON.
+    const payload = { action: "checkin", name, organizations: orgs, week: selectedWeek };
     const res = await fetch(WEB_APP_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -150,15 +235,17 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "Server rejected the submission.");
 
+    // Reflect the new check-ins locally, then re-render.
+    records.push({ timestamp: new Date().toISOString(), name, organizations: orgs, week: selectedWeek });
     setStatus(`✓ Recorded — thank you, ${name}!`, "ok");
-    form.reset();
-    form.querySelectorAll(".org-item.checked").forEach((el) => el.classList.remove("checked"));
-    historyLoadedOnce = false; // force refresh next time History is opened
+    document.getElementById("name").value = name; // keep the name for further entries
+    renderCheckin();
+    loadRecords().then(renderCheckin).catch(() => {}); // resync from server in the background
   } catch (err) {
     setStatus("Could not submit: " + err.message, "err");
   } finally {
-    submitBtn.disabled = false;
     submitBtn.textContent = "Submit";
+    if (!submitBtn.disabled) submitBtn.disabled = false;
   }
 });
 
@@ -166,98 +253,65 @@ function setStatus(msg, kind) {
   formStatus.textContent = msg;
   formStatus.className = "form-status " + (kind || "");
 }
+function clearStatus() {
+  formStatus.textContent = "";
+  formStatus.className = "form-status";
+  orgError.hidden = true;
+}
 
-// ── History ──────────────────────────────────────────────────
-const statusBoard = document.getElementById("status-board");
-const historyListEl = document.getElementById("history-list");
-const weekLabel = document.getElementById("week-label");
+// ── History tab (organization × week matrix) ─────────────────
+const historyGrid = document.getElementById("history-grid");
 const connStatus = document.getElementById("conn-status");
-document.getElementById("refresh-btn").addEventListener("click", () => loadHistory({ force: true }));
+document.getElementById("refresh-btn").addEventListener("click", () => {
+  historyGrid.innerHTML = `<p class="muted">Loading…</p>`;
+  loadRecords().then(() => { renderHistory(); renderCheckin(); }).catch((err) => {
+    historyGrid.innerHTML = `<p class="muted">Could not load: ${escapeHtml(err.message)}</p>`;
+  });
+});
 
-async function loadHistory({ force } = {}) {
+function renderHistory() {
   if (!IS_CONFIGURED) {
-    statusBoard.innerHTML = `<p class="muted">Configure the backend to see history.</p>`;
-    historyListEl.innerHTML = "";
+    historyGrid.innerHTML = `<p class="muted">Configure the backend to see check-ins.</p>`;
     return;
   }
-  if (historyLoadedOnce && !force) return;
+  if (!loaded) { historyGrid.innerHTML = `<p class="muted">Loading…</p>`; return; }
 
-  statusBoard.innerHTML = `<p class="muted">Loading…</p>`;
-  historyListEl.innerHTML = `<p class="muted">Loading…</p>`;
-  connStatus.textContent = "";
+  // Columns: most recent weeks (those with data, plus the current week), newest first.
+  const weeksSet = new Set(records.map((r) => r.week).filter(Boolean));
+  weeksSet.add(CURRENT_WEEK);
+  const weeks = [...weeksSet].sort().reverse().slice(0, 8);
 
-  try {
-    const res = await fetch(WEB_APP_URL + "?action=history", { redirect: "follow" });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || "Failed to load history.");
-    historyLoadedOnce = true;
-    renderWeekBoard(data.records || []);
-    renderHistoryList(data.records || []);
-    connStatus.textContent = `${(data.records || []).length} check-in(s) on record`;
-  } catch (err) {
-    statusBoard.innerHTML = `<p class="muted">Could not load: ${escapeHtml(err.message)}</p>`;
-    historyListEl.innerHTML = "";
-  }
-}
+  const byWeek = {};
+  weeks.forEach((w) => (byWeek[w] = checkedByForWeek(w)));
 
-// Show, for the current week's Sunday, which organizations have been checked.
-function renderWeekBoard(records) {
-  const thisWeek = sundayOf(new Date());
-  weekLabel.textContent = "Week of " + prettyDate(thisWeek);
+  const head = weeks.map((w) => {
+    const done = ORGANIZATIONS.filter((o) => byWeek[w][o] && byWeek[w][o].length).length;
+    const isNow = w === CURRENT_WEEK;
+    return `<th class="wk${isNow ? " wk-now" : ""}">
+      <span class="wk-date">${escapeHtml(shortDate(w))}</span>
+      <span class="wk-count">${done}/${TOTAL}</span>
+    </th>`;
+  }).join("");
 
-  // org -> list of names who checked it this week
-  const checkedBy = {};
-  records
-    .filter((r) => r.week === thisWeek)
-    .forEach((r) => {
-      (r.organizations || []).forEach((org) => {
-        (checkedBy[org] = checkedBy[org] || []).push(r.name);
-      });
-    });
+  const body = ORGANIZATIONS.map((org) => {
+    const cells = weeks.map((w) => {
+      const names = byWeek[w][org];
+      if (names && names.length) {
+        return `<td class="cell yes" title="${escapeHtml(uniqueNames(names))}">
+          <span class="tick">✓</span></td>`;
+      }
+      return `<td class="cell no"><span class="cross">·</span></td>`;
+    }).join("");
+    return `<tr><th class="rowhead" scope="row">${escapeHtml(org)}</th>${cells}</tr>`;
+  }).join("");
 
-  statusBoard.innerHTML = "";
-  ORGANIZATIONS.forEach((org) => {
-    const names = checkedBy[org];
-    const done = names && names.length > 0;
-    const cell = document.createElement("div");
-    cell.className = "status-cell " + (done ? "yes" : "no");
-    cell.innerHTML = `
-      <div>
-        <span class="org-name">${escapeHtml(org)}</span>
-        ${done ? `<span class="who">by ${escapeHtml(uniqueNames(names))}</span>` : ""}
-      </div>
-      <span class="badge">${done ? "Checked" : "Not yet"}</span>`;
-    statusBoard.appendChild(cell);
-  });
-}
+  historyGrid.innerHTML = `
+    <table class="matrix">
+      <thead><tr><th class="corner" scope="col">Organization</th>${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
 
-function uniqueNames(names) {
-  return [...new Set(names)].join(", ");
-}
-
-function renderHistoryList(records) {
-  if (!records.length) {
-    historyListEl.innerHTML = `<p class="muted">No check-ins yet.</p>`;
-    return;
-  }
-  // Newest first.
-  const sorted = [...records].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  historyListEl.innerHTML = "";
-  sorted.forEach((r) => {
-    const row = document.createElement("div");
-    row.className = "history-row";
-    const chips = (r.organizations || [])
-      .map((o) => `<span class="chip">${escapeHtml(o)}</span>`)
-      .join("");
-    row.innerHTML = `
-      <div class="row-top">
-        <span class="row-name">${escapeHtml(r.name)}</span>
-        <span class="row-time">${escapeHtml(prettyDateTime(r.timestamp))}</span>
-      </div>
-      <div class="row-orgs">${chips}</div>
-      <div class="row-week">Attendance week of ${escapeHtml(prettyDate(r.week))}</div>`;
-    historyListEl.appendChild(row);
-  });
+  connStatus.textContent = `${records.length} check-in(s) on record`;
 }
 
 // ── Util ─────────────────────────────────────────────────────
@@ -265,4 +319,19 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
+}
+
+// ── Init ─────────────────────────────────────────────────────
+renderCheckin();
+if (IS_CONFIGURED) {
+  loadRecords()
+    .then(() => { renderCheckin(); renderHistory(); })
+    .catch((err) => {
+      loaded = true;
+      renderCheckin();
+      historyGrid.innerHTML = `<p class="muted">Could not load: ${escapeHtml(err.message)}</p>`;
+    });
+} else {
+  loaded = true;
+  renderCheckin();
 }

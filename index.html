@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Attendance Check-In</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%85</text></svg>" />
-<link rel="stylesheet" href="assets/styles.css?v=2" />
+<link rel="stylesheet" href="assets/styles.css?v=3" />
 
 <div class="app">
   <header class="app-header">
@@ -24,17 +24,42 @@
     <form id="checkin-form" class="card" novalidate>
       <label class="field">
         <span class="field-label">Your name</span>
-        <input type="text" id="name" name="name" autocomplete="name"
-               placeholder="e.g. John Smith" required />
+        <input type="text" id="name" name="name" autocomplete="name" required />
       </label>
+
+      <!-- Week navigator -->
+      <div class="week-nav">
+        <button type="button" id="week-prev" class="nav-btn" aria-label="Previous Sunday">‹</button>
+        <div class="week-nav-center">
+          <span class="week-nav-date" id="week-date">—</span>
+          <span class="week-nav-rel" id="week-rel"></span>
+        </div>
+        <button type="button" id="week-next" class="nav-btn" aria-label="Next Sunday">›</button>
+      </div>
+
+      <!-- Progress ring -->
+      <div class="progress-row">
+        <svg class="donut" viewBox="0 0 36 36" aria-hidden="true">
+          <circle class="donut-track" cx="18" cy="18" r="15.9155"></circle>
+          <circle class="donut-fill" id="donut-fill" cx="18" cy="18" r="15.9155"></circle>
+          <text class="donut-pct" id="donut-pct" x="18" y="19">0%</text>
+        </svg>
+        <div class="progress-text">
+          <strong id="progress-count">0/0</strong> organizations checked
+          <span class="progress-sub" id="progress-sub">for this week</span>
+        </div>
+      </div>
 
       <fieldset class="field">
         <legend class="field-label">
-          Organizations checked
-          <span class="hint">— select all that apply</span>
+          Organizations
+          <span class="hint">— tick each one you've checked</span>
         </legend>
-        <div id="org-list" class="org-list"><!-- checkboxes injected by JS --></div>
+        <div id="org-list" class="org-list">
+          <p class="muted">Loading…</p>
+        </div>
         <p id="org-error" class="error-text" hidden>Please select at least one organization.</p>
+        <p id="all-done-note" class="all-done-note" hidden>✓ All organizations are checked for this week.</p>
       </fieldset>
 
       <button type="submit" id="submit-btn" class="btn btn-primary">Submit</button>
@@ -46,26 +71,14 @@
   <section id="tab-history" class="panel" role="tabpanel" hidden>
     <div class="card">
       <div class="history-head">
-        <div>
-          <h2 class="card-title">This week</h2>
-          <p id="week-label" class="week-label"></p>
-        </div>
+        <h2 class="card-title">Check-ins</h2>
         <button id="refresh-btn" class="btn btn-ghost" type="button">Refresh</button>
       </div>
-
       <div class="legend">
         <span class="legend-item"><span class="dot dot-yes"></span> Checked</span>
-        <span class="legend-item"><span class="dot dot-no"></span> Not checked</span>
+        <span class="legend-item"><span class="dot dot-no"></span> Not checked yet</span>
       </div>
-
-      <div id="status-board" class="status-board" aria-live="polite">
-        <p class="muted">Loading…</p>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2 class="card-title">All check-ins</h2>
-      <div id="history-list" class="history-list">
+      <div id="history-grid" class="grid-wrap" aria-live="polite">
         <p class="muted">Loading…</p>
       </div>
     </div>
@@ -76,5 +89,5 @@
   </footer>
 </div>
 
-<script src="config.js?v=2"></script>
-<script src="assets/app.js?v=2"></script>
+<script src="config.js?v=3"></script>
+<script src="assets/app.js?v=3"></script>
