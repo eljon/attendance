@@ -223,22 +223,19 @@ input[type="text"]:focus {
 .org-item {
   position: relative;
   display: flex; align-items: center; gap: 12px;
-  padding: 13px 14px 13px 20px;
+  padding: 14px;
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(20, 36, 63, .07);
   cursor: pointer; user-select: none;
   transition: transform .16s, border-color .16s, background .16s, box-shadow .16s;
   animation: fadeUp .45s cubic-bezier(.2,.7,.3,1) both;
 }
-.org-item::before {                       /* status accent bar: amber = pending */
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
-  border-radius: 12px 0 0 12px; background: var(--amber);
-}
 .org-grid .org-item:nth-child(2) { animation-delay: .04s; }
 .org-grid .org-item:nth-child(3) { animation-delay: .08s; }
 .org-grid .org-item:nth-child(4) { animation-delay: .12s; }
-.org-item:hover:not(.done) { border-color: var(--amber); background: var(--amber-soft); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(20,36,63,.12); }
+.org-item:hover:not(.done) { border-color: var(--amber); transform: translateY(-2px); box-shadow: 0 10px 22px rgba(20,36,63,.14); }
 
 /* custom checkbox: amber empty ring → teal filled check */
 .org-item input[type="checkbox"] {
@@ -258,8 +255,7 @@ input[type="text"]:focus {
   content: "✓"; position: absolute; inset: 0; display: grid; place-items: center;
   color: #fff; font-size: 14px; font-weight: 800;
 }
-.org-item.checked { border-color: var(--steel); background: rgba(18,130,162,.08); }
-.org-item.checked::before { background: linear-gradient(var(--steel), var(--blue)); box-shadow: 0 0 12px rgba(18,130,162,.5); }
+.org-item.checked { border-color: var(--steel); background: rgba(18,130,162,.10); box-shadow: 0 4px 14px rgba(18,130,162,.2); }
 .org-item .org-name { font-size: .95rem; font-weight: 600; color: var(--ink); }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -267,10 +263,10 @@ input[type="text"]:focus {
 /* Already-checked (non-clickable) rows */
 .org-item.done {
   cursor: default;
-  background: linear-gradient(135deg, rgba(18,130,162,.15), rgba(3,64,120,.08));
-  border-color: rgba(18,130,162,.4);
+  background: linear-gradient(135deg, rgba(18,130,162,.16), rgba(3,64,120,.09));
+  border-color: rgba(18,130,162,.45);
+  box-shadow: 0 3px 12px rgba(18,130,162,.16);
 }
-.org-item.done::before { background: linear-gradient(var(--steel), var(--blue)); box-shadow: 0 0 12px rgba(18,130,162,.5); }
 .org-item.done .org-check {
   flex: none; width: 22px; height: 22px; display: grid; place-items: center;
   background: linear-gradient(135deg, var(--steel), var(--blue));
@@ -383,6 +379,50 @@ input[type="text"]:focus {
   padding: 13px 15px; border-radius: 12px; margin-bottom: 18px; font-size: .9rem; font-weight: 500;
 }
 .banner code { background: rgba(20,36,63,.08); padding: 1px 6px; border-radius: 5px; }
+
+/* ── Mobile (most users) ────────────────────────────────────── */
+@media (max-width: 640px) {
+  .app { padding: 20px 12px 40px; }
+  .app-header { margin-bottom: 16px; }
+  .eyebrow { letter-spacing: .22em; font-size: .68rem; margin-bottom: 9px; }
+  .app-header h1 { font-size: clamp(1.7rem, 8.5vw, 2.4rem); }
+
+  .tabs { max-width: none; margin-bottom: 16px; }
+  .tab { padding: 12px 14px; }               /* comfortable tap target */
+
+  .card { padding: 16px; border-radius: 16px; }
+  .card-title { font-size: 1.1rem; }
+
+  input[type="text"] { padding: 14px; font-size: 16px; } /* 16px avoids iOS zoom-on-focus */
+
+  .week-nav { padding: 7px 8px; margin-bottom: 16px; }
+  .week-nav-date { font-size: .95rem; }
+  .nav-btn { width: 46px; height: 46px; }
+
+  .progress-row { gap: 14px; padding-bottom: 16px; }
+  .donut { width: 64px; height: 64px; }
+  .progress-text { font-size: .95rem; }
+  .progress-text strong { font-size: 1.3rem; }
+
+  .org-list { gap: 16px; }
+  .org-item { padding: 14px 13px; }          /* keep rows easy to tap */
+
+  .legend { flex-wrap: wrap; gap: 8px 16px; }
+  .history-head { gap: 8px; }
+
+  .matrix { font-size: .84rem; }
+  .matrix thead th { padding: 9px 5px; }
+  .matrix .corner, .matrix .rowhead { padding: 11px 8px 11px 6px; }
+  .cell { padding: 10px 5px; }
+  .cell .tick { width: 22px; height: 22px; }
+  .wk { min-width: 52px; }
+}
+
+@media (max-width: 380px) {
+  .app-header h1 { font-size: 1.55rem; }
+  .badge { padding: 3px 7px; font-size: .58rem; }
+  .btn-primary { padding: 15px; }            /* full-width, thumb-friendly */
+}
 
 /* ── Reduced motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
