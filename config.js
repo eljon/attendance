@@ -7,5 +7,5 @@
 //    https://script.google.com/macros/s/AKfy.../exec
 // ─────────────────────────────────────────────────────────────
 window.CONFIG = {
-  WEB_APP_URL: "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE",
+  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz9n0GGMTPgHVe73gnIYH5aW-Zf-iwlscZ16sgIl5UXeNdxJH808XxSS52NH08Rfz47/exec",
 };
