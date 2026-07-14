@@ -227,16 +227,80 @@ function setProgress(done) {
     ago === 0 ? "for this week" : `for week of ${shortDate(selectedWeek)}`;
 }
 
-// ── Name search suggestions ──────────────────────────────────
-// Based on everyone who has reported before — every distinct name in the
-// shared database. (New submissions are pushed into `records`, so a
-// just-added name appears here too.)
-const nameDatalist = document.getElementById("name-suggestions");
+// ── Name autocomplete (custom, uniform across browsers) ──────
+// Suggestions are everyone who has reported before — every distinct name in
+// the shared database. A fully custom dropdown (no native <datalist>) so it
+// looks identical on every device.
+const nameInput = document.getElementById("name");
+const nameListbox = document.getElementById("name-listbox");
+let nameList = [];        // all distinct names, sorted
+let comboMatches = [];    // currently shown matches
+let comboActive = -1;     // highlighted index
+
 function updateNameSuggestions() {
-  if (!nameDatalist) return;
-  const names = [...new Set(records.map((r) => r.name).filter(Boolean))]
+  nameList = [...new Set(records.map((r) => r.name).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b));
-  nameDatalist.innerHTML = names.map((n) => `<option value="${escapeHtml(n)}"></option>`).join("");
+  if (nameListbox && !nameListbox.hidden) renderCombo();
+}
+function highlightMatch(name, q) {
+  if (!q) return escapeHtml(name);
+  const i = name.toLowerCase().indexOf(q);
+  if (i < 0) return escapeHtml(name);
+  return escapeHtml(name.slice(0, i)) + "<mark>" + escapeHtml(name.slice(i, i + q.length)) +
+    "</mark>" + escapeHtml(name.slice(i + q.length));
+}
+function renderCombo() {
+  const q = nameInput.value.trim().toLowerCase();
+  comboMatches = nameList.filter((n) => n.toLowerCase().includes(q)).slice(0, 8);
+  comboActive = -1;
+  nameInput.removeAttribute("aria-activedescendant");
+  if (!comboMatches.length) { closeCombo(); return; }
+  nameListbox.innerHTML = comboMatches.map((n, i) =>
+    `<li class="combo-opt" role="option" id="name-opt-${i}" data-i="${i}">${highlightMatch(n, q)}</li>`
+  ).join("");
+  nameListbox.hidden = false;
+  nameInput.setAttribute("aria-expanded", "true");
+}
+function closeCombo() {
+  if (!nameListbox) return;
+  nameListbox.hidden = true;
+  nameListbox.innerHTML = "";
+  comboActive = -1;
+  nameInput.setAttribute("aria-expanded", "false");
+  nameInput.removeAttribute("aria-activedescendant");
+}
+function setComboActive(i) {
+  const opts = [...nameListbox.querySelectorAll(".combo-opt")];
+  if (!opts.length) return;
+  comboActive = (i + opts.length) % opts.length;
+  opts.forEach((o, idx) => o.classList.toggle("active", idx === comboActive));
+  const el = opts[comboActive];
+  el.scrollIntoView({ block: "nearest" });
+  nameInput.setAttribute("aria-activedescendant", el.id);
+}
+function chooseCombo(i) {
+  if (i < 0 || i >= comboMatches.length) return;
+  nameInput.value = comboMatches[i];
+  closeCombo();
+  nameInput.focus();
+}
+if (nameInput) {
+  nameInput.addEventListener("input", renderCombo);
+  nameInput.addEventListener("focus", renderCombo);
+  nameInput.addEventListener("blur", () => setTimeout(closeCombo, 120)); // let a click land first
+  nameInput.addEventListener("keydown", (e) => {
+    if (nameListbox.hidden) { if (e.key === "ArrowDown") renderCombo(); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); setComboActive(comboActive + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setComboActive(comboActive - 1); }
+    else if (e.key === "Enter" && comboActive >= 0) { e.preventDefault(); chooseCombo(comboActive); }
+    else if (e.key === "Escape") { closeCombo(); }
+  });
+  nameListbox.addEventListener("mousedown", (e) => {
+    const li = e.target.closest(".combo-opt");
+    if (!li) return;
+    e.preventDefault();               // keep focus; prevents blur from closing before the pick
+    chooseCombo(Number(li.dataset.i));
+  });
 }
 
 // ── Submit ───────────────────────────────────────────────────
