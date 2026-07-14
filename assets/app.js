@@ -163,6 +163,7 @@ function orgItemNode(org, names) {
 const orgList = document.getElementById("org-list");
 const orgError = document.getElementById("org-error");
 const allDoneNote = document.getElementById("all-done-note");
+const nameField = document.querySelector(".field-name");
 const weekDateEl = document.getElementById("week-date");
 const weekRelEl = document.getElementById("week-rel");
 const weekPrev = document.getElementById("week-prev");
@@ -214,6 +215,8 @@ function renderCheckin() {
   setProgress(doneCount);
   const allDone = doneCount === TOTAL;
   const allDoneTop = document.getElementById("all-done-top");
+  // Celebration only shows for a fully-checked week; it clears automatically
+  // when navigating to a week that isn't complete.
   allDoneNote.hidden = !allDone;
   allDoneTop.hidden = !allDone;
   if (allDone) {
@@ -224,6 +227,10 @@ function renderCheckin() {
     document.getElementById("all-done-top-sub").textContent = msg;
   }
   document.querySelector(".donut").classList.toggle("complete", allDone);
+  // Nothing to submit when the week is already complete — hide the name field
+  // and submit button; they return for any not-yet-complete week.
+  if (nameField) nameField.hidden = allDone;
+  submitBtn.hidden = allDone;
   submitBtn.disabled = allDone;
 }
 
