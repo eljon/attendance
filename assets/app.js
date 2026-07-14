@@ -66,10 +66,17 @@ function prettyDateTime(value) {
 
 // ── Tab switching ────────────────────────────────────────────
 const tabs = document.querySelectorAll(".tab");
+const tabIndicator = document.querySelector(".tab-indicator");
 const panels = {
   checkin: document.getElementById("tab-checkin"),
   history: document.getElementById("tab-history"),
+  stats: document.getElementById("tab-stats"),
 };
+function positionIndicator(tab) {
+  if (!tabIndicator || !tab) return;
+  tabIndicator.style.width = tab.offsetWidth + "px";
+  tabIndicator.style.transform = `translateX(${tab.offsetLeft}px)`;
+}
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     const target = tab.dataset.tab;
@@ -83,10 +90,12 @@ tabs.forEach((tab) => {
       el.classList.toggle("is-active", active);
       el.hidden = !active;
     });
-    document.querySelector(".tabs").dataset.active = target;
+    positionIndicator(tab);
     if (target === "history") renderHistory();
+    if (target === "stats") renderStats();
   });
 });
+window.addEventListener("resize", () => positionIndicator(document.querySelector(".tab.is-active")));
 
 // ── Config banner ────────────────────────────────────────────
 if (!IS_CONFIGURED) {
@@ -275,7 +284,7 @@ const historyGrid = document.getElementById("history-grid");
 const connStatus = document.getElementById("conn-status");
 document.getElementById("refresh-btn").addEventListener("click", () => {
   historyGrid.innerHTML = `<p class="muted">Loading…</p>`;
-  loadRecords().then(() => { renderHistory(); renderCheckin(); }).catch((err) => {
+  loadRecords().then(() => { renderHistory(); renderCheckin(); renderStats(); }).catch((err) => {
     historyGrid.innerHTML = `<p class="muted">Could not load: ${escapeHtml(err.message)}</p>`;
   });
 });
@@ -332,6 +341,111 @@ function renderHistory() {
   connStatus.textContent = `${records.length} check-in(s) on record`;
 }
 
+// ── Leaderboard (gamification) ───────────────────────────────
+const boardEarly = document.getElementById("board-early");
+const boardFreq = document.getElementById("board-freq");
+const earlyWeekEl = document.getElementById("early-week");
+
+// 3:30 PM on the given Sunday, in the viewer's local time.
+function ref330(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d, 15, 30, 0, 0).getTime();
+}
+function prettyTime(ms) {
+  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+// Friendly gap from 3:30 PM, e.g. "12 min after 3:30" / "5 min early" / "1h 20m after".
+function gapLabel(deltaMs) {
+  const min = Math.round(deltaMs / 60000);
+  if (min === 0) return { text: "right on 3:30", kind: "on" };
+  const late = min > 0, a = Math.abs(min);
+  const s = a < 60 ? `${a} min` : `${Math.floor(a / 60)}h ${String(a % 60).padStart(2, "0")}m`;
+  return late ? { text: `${s} after 3:30`, kind: "late" } : { text: `${s} early`, kind: "early" };
+}
+function medal(rank) {
+  return rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
+}
+function rankBadge(rank) {
+  const m = medal(rank);
+  return m
+    ? `<span class="rank-badge medal">${m}</span>`
+    : `<span class="rank-badge">${rank}</span>`;
+}
+
+function renderStats() {
+  if (!IS_CONFIGURED) {
+    boardEarly.innerHTML = `<li class="muted board-empty">Configure the backend to see the leaderboard.</li>`;
+    boardFreq.innerHTML = "";
+    earlyWeekEl.textContent = "";
+    return;
+  }
+  if (!loaded) {
+    boardEarly.innerHTML = `<li class="muted board-empty">Loading…</li>`;
+    boardFreq.innerHTML = `<li class="muted board-empty">Loading…</li>`;
+    return;
+  }
+
+  // ── Fastest to check in ──
+  // Use the most recent week (≤ this week) that has check-ins.
+  const weeksWithData = [...new Set(records.map((r) => r.week).filter(Boolean))]
+    .filter((w) => w <= CURRENT_WEEK).sort();
+  const wk = weeksWithData.length ? weeksWithData[weeksWithData.length - 1] : CURRENT_WEEK;
+  earlyWeekEl.textContent = wk === CURRENT_WEEK ? "This week" : `Week of ${shortDate(wk)}`;
+
+  const ref = ref330(wk);
+  const earliest = {};                        // name -> earliest check-in ms that week
+  records.filter((r) => r.week === wk).forEach((r) => {
+    const t = new Date(r.timestamp).getTime();
+    if (isNaN(t)) return;
+    if (!(r.name in earliest) || t < earliest[r.name]) earliest[r.name] = t;
+  });
+  const early = Object.entries(earliest)
+    .map(([name, t]) => ({ name, t }))
+    .sort((a, b) => a.t - b.t);
+
+  if (!early.length) {
+    boardEarly.innerHTML = `<li class="muted board-empty">No check-ins yet for this week.</li>`;
+  } else {
+    boardEarly.innerHTML = early.map((e, i) => {
+      const g = gapLabel(e.t - ref);
+      return `<li class="rank-row${i < 3 ? " top" : ""}">
+        ${rankBadge(i + 1)}
+        <span class="rank-name">${escapeHtml(e.name)}</span>
+        <span class="rank-meta">
+          <span class="rank-time">${escapeHtml(prettyTime(e.t))}</span>
+          <span class="gap-chip ${g.kind}">${escapeHtml(g.text)}</span>
+        </span>
+      </li>`;
+    }).join("");
+  }
+
+  // ── Most consistent (all-time distinct weeks) ──
+  const weeksBy = {}, totalBy = {};
+  records.forEach((r) => {
+    if (!r.name) return;
+    (weeksBy[r.name] = weeksBy[r.name] || new Set()).add(r.week);
+    totalBy[r.name] = (totalBy[r.name] || 0) + 1;
+  });
+  const freq = Object.keys(weeksBy)
+    .map((name) => ({ name, weeks: weeksBy[name].size, total: totalBy[name] }))
+    .sort((a, b) => b.weeks - a.weeks || b.total - a.total || a.name.localeCompare(b.name));
+
+  if (!freq.length) {
+    boardFreq.innerHTML = `<li class="muted board-empty">No check-ins yet.</li>`;
+  } else {
+    const max = freq[0].weeks || 1;
+    boardFreq.innerHTML = freq.map((f, i) => `
+      <li class="rank-row${i < 3 ? " top" : ""}">
+        ${rankBadge(i + 1)}
+        <span class="rank-name">${escapeHtml(f.name)}</span>
+        <span class="freq-wrap">
+          <span class="freq-bar"><span class="freq-fill" style="width:${Math.round((f.weeks / max) * 100)}%"></span></span>
+          <span class="freq-count">${f.weeks} ${f.weeks === 1 ? "wk" : "wks"}</span>
+        </span>
+      </li>`).join("");
+  }
+}
+
 // ── Util ─────────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
@@ -366,9 +480,10 @@ function escapeHtml(str) {
 
 // ── Init ─────────────────────────────────────────────────────
 renderCheckin();
+positionIndicator(document.querySelector(".tab.is-active"));
 if (IS_CONFIGURED) {
   loadRecords()
-    .then(() => { renderCheckin(); renderHistory(); })
+    .then(() => { renderCheckin(); renderHistory(); renderStats(); })
     .catch((err) => {
       loaded = true;
       renderCheckin();
