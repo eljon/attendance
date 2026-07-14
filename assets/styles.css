@@ -341,6 +341,7 @@ input[type="text"]:focus, input[type="search"]:focus {
 @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-4px) rotate(4deg); } }
 @keyframes shine { 0% { transform: translateX(-120%); } 55%,100% { transform: translateX(120%); } }
 
+.celebrate-top { margin: 0 0 18px; }
 #history-celebrate { margin-bottom: 14px; }
 #history-celebrate:empty { display: none; margin: 0; }
 

@@ -213,12 +213,15 @@ function renderCheckin() {
 
   setProgress(doneCount);
   const allDone = doneCount === TOTAL;
+  const allDoneTop = document.getElementById("all-done-top");
   allDoneNote.hidden = !allDone;
+  allDoneTop.hidden = !allDone;
   if (allDone) {
     const ago = weeksAgo(selectedWeek);
     const when = ago === 0 ? "this week" : `the week of ${shortDate(selectedWeek)}`;
-    document.getElementById("all-done-sub").textContent =
-      `Every one of the ${TOTAL} organizations has reported for ${when}. Thank you, Kalayaan Ward! 🙌`;
+    const msg = `Every one of the ${TOTAL} organizations has reported for ${when}. Thank you, Kalayaan Ward! 🙌`;
+    document.getElementById("all-done-sub").textContent = msg;
+    document.getElementById("all-done-top-sub").textContent = msg;
   }
   document.querySelector(".donut").classList.toggle("complete", allDone);
   submitBtn.disabled = allDone;
