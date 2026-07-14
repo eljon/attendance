@@ -344,23 +344,31 @@ function renderHistory() {
 // ── Leaderboard (gamification) ───────────────────────────────
 const boardEarly = document.getElementById("board-early");
 const boardFreq = document.getElementById("board-freq");
-const earlyWeekEl = document.getElementById("early-week");
+const earlyNote = document.getElementById("early-note");
+let earlyMode = "all";   // "all" (averaged) | "week"
 
-// 3:30 PM on the given Sunday, in the viewer's local time.
-function ref330(iso) {
+document.getElementById("early-mode").addEventListener("click", (e) => {
+  const btn = e.target.closest(".seg-btn");
+  if (!btn || btn.dataset.mode === earlyMode) return;
+  earlyMode = btn.dataset.mode;
+  [...e.currentTarget.querySelectorAll(".seg-btn")].forEach((b) => b.classList.toggle("is-on", b === btn));
+  renderStats();
+});
+
+// 3:30 PM Philippine time (Asia/Manila = UTC+8, no DST) for a Sunday,
+// as an absolute epoch ms. 15:30 Manila == 07:30 UTC on the same date.
+function ref330Manila(iso) {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d, 15, 30, 0, 0).getTime();
+  return Date.UTC(y, m - 1, d, 7, 30, 0, 0);
 }
-function prettyTime(ms) {
-  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+function timeManila(ms) {
+  return new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" });
 }
-// Friendly gap from 3:30 PM, e.g. "12 min after 3:30" / "5 min early" / "1h 20m after".
-function gapLabel(deltaMs) {
-  const min = Math.round(deltaMs / 60000);
-  if (min === 0) return { text: "right on 3:30", kind: "on" };
-  const late = min > 0, a = Math.abs(min);
-  const s = a < 60 ? `${a} min` : `${Math.floor(a / 60)}h ${String(a % 60).padStart(2, "0")}m`;
-  return late ? { text: `${s} after 3:30`, kind: "late" } : { text: `${s} early`, kind: "early" };
+// Minutes → "8 min" / "1h 05m" / "on time" (≤ 0).
+function fmtDur(min) {
+  min = Math.round(min);
+  if (min <= 0) return "on time";
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, "0")}m`;
 }
 function medal(rank) {
   return rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
@@ -386,37 +394,62 @@ function renderStats() {
   }
 
   // ── Fastest to check in ──
-  // Use the most recent week (≤ this week) that has check-ins.
-  const weeksWithData = [...new Set(records.map((r) => r.week).filter(Boolean))]
-    .filter((w) => w <= CURRENT_WEEK).sort();
-  const wk = weeksWithData.length ? weeksWithData[weeksWithData.length - 1] : CURRENT_WEEK;
-  earlyWeekEl.textContent = wk === CURRENT_WEEK ? "This week" : `Week of ${shortDate(wk)}`;
-
-  const ref = ref330(wk);
-  const earliest = {};                        // name -> earliest check-in ms that week
-  records.filter((r) => r.week === wk).forEach((r) => {
+  // Each person's best (earliest) score per week, in minutes after 3:30 PM
+  // Manila, clamped so anything at/before 3:30 PM counts as 0.
+  const perPersonWeek = {};   // name -> { week -> { score, t } }
+  records.forEach((r) => {
+    if (!r.name || !r.week) return;
     const t = new Date(r.timestamp).getTime();
     if (isNaN(t)) return;
-    if (!(r.name in earliest) || t < earliest[r.name]) earliest[r.name] = t;
+    const score = Math.max(0, (t - ref330Manila(r.week)) / 60000);
+    const pw = (perPersonWeek[r.name] = perPersonWeek[r.name] || {});
+    if (!(r.week in pw) || score < pw[r.week].score) pw[r.week] = { score, t };
   });
-  const early = Object.entries(earliest)
-    .map(([name, t]) => ({ name, t }))
-    .sort((a, b) => a.t - b.t);
 
-  if (!early.length) {
-    boardEarly.innerHTML = `<li class="muted board-empty">No check-ins yet for this week.</li>`;
+  if (earlyMode === "all") {
+    earlyNote.innerHTML =
+      "Average time after <strong>3:30&nbsp;PM</strong> (Manila) across every Sunday reported. Checking in before 3:30 counts as 0.";
+    const rows = Object.entries(perPersonWeek).map(([name, weeks]) => {
+      const scores = Object.values(weeks).map((x) => x.score);
+      const avg = scores.reduce((s, x) => s + x, 0) / scores.length;
+      return { name, avg, weeks: scores.length };
+    }).sort((a, b) => a.avg - b.avg || b.weeks - a.weeks || a.name.localeCompare(b.name));
+
+    boardEarly.innerHTML = rows.length
+      ? rows.map((e, i) => `
+          <li class="rank-row${i < 3 ? " top" : ""}">
+            ${rankBadge(i + 1)}
+            <span class="rank-name">${escapeHtml(e.name)}</span>
+            <span class="rank-meta">
+              <span class="rank-time">${escapeHtml(fmtDur(e.avg))}${e.avg > 0 ? " avg" : ""}</span>
+              <span class="gap-chip neutral">${e.weeks} ${e.weeks === 1 ? "wk" : "wks"}</span>
+            </span>
+          </li>`).join("")
+      : `<li class="muted board-empty">No check-ins yet.</li>`;
   } else {
-    boardEarly.innerHTML = early.map((e, i) => {
-      const g = gapLabel(e.t - ref);
-      return `<li class="rank-row${i < 3 ? " top" : ""}">
-        ${rankBadge(i + 1)}
-        <span class="rank-name">${escapeHtml(e.name)}</span>
-        <span class="rank-meta">
-          <span class="rank-time">${escapeHtml(prettyTime(e.t))}</span>
-          <span class="gap-chip ${g.kind}">${escapeHtml(g.text)}</span>
-        </span>
-      </li>`;
-    }).join("");
+    // Most recent week (≤ this week) that has data.
+    const weeksWithData = [...new Set(records.map((r) => r.week).filter(Boolean))]
+      .filter((w) => w <= CURRENT_WEEK).sort();
+    const wk = weeksWithData.length ? weeksWithData[weeksWithData.length - 1] : CURRENT_WEEK;
+    earlyNote.innerHTML =
+      `How soon after <strong>3:30&nbsp;PM</strong> (Manila) they reported — week of ${escapeHtml(shortDate(wk))}. Before 3:30 counts as 0.`;
+
+    const rows = Object.entries(perPersonWeek)
+      .filter(([, weeks]) => wk in weeks)
+      .map(([name, weeks]) => ({ name, score: weeks[wk].score, t: weeks[wk].t }))
+      .sort((a, b) => a.score - b.score || a.t - b.t || a.name.localeCompare(b.name));
+
+    boardEarly.innerHTML = rows.length
+      ? rows.map((e, i) => `
+          <li class="rank-row${i < 3 ? " top" : ""}">
+            ${rankBadge(i + 1)}
+            <span class="rank-name">${escapeHtml(e.name)}</span>
+            <span class="rank-meta">
+              <span class="rank-time">${escapeHtml(timeManila(e.t))}</span>
+              <span class="gap-chip ${e.score <= 0 ? "on" : "late"}">${e.score <= 0 ? "on time" : escapeHtml(fmtDur(e.score)) + " after"}</span>
+            </span>
+          </li>`).join("")
+      : `<li class="muted board-empty">No check-ins yet for this week.</li>`;
   }
 
   // ── Most consistent (all-time distinct weeks) ──
