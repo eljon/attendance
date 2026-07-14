@@ -120,8 +120,20 @@ body {
 
 /* ── Panels ─────────────────────────────────────────────────── */
 .panel { display: none; }
-.panel.is-active { display: block; animation: panelIn .45s cubic-bezier(.2,.7,.3,1) both; }
-@keyframes panelIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.panel.is-active { display: block; }
+
+/* Each card's contents slide up individually (staggered), not as one block. */
+.panel.is-active .card { animation: cardFade .5s both; }
+@keyframes cardFade { from { opacity: 0; } to { opacity: 1; } }
+.panel.is-active .card > * { animation: fadeUp .55s cubic-bezier(.2,.7,.3,1) both; }
+.panel.is-active .card > *:nth-child(1) { animation-delay: .06s; }
+.panel.is-active .card > *:nth-child(2) { animation-delay: .12s; }
+.panel.is-active .card > *:nth-child(3) { animation-delay: .18s; }
+.panel.is-active .card > *:nth-child(4) { animation-delay: .24s; }
+.panel.is-active .card > *:nth-child(5) { animation-delay: .30s; }
+.panel.is-active .card > *:nth-child(6) { animation-delay: .36s; }
+.panel.is-active .card > *:nth-child(7) { animation-delay: .42s; }
+.panel.is-active .card > *:nth-child(8) { animation-delay: .48s; }
 
 /* ── Cards ──────────────────────────────────────────────────── */
 .card {
@@ -131,7 +143,6 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 24px; margin-bottom: 18px;
-  animation: rise .6s .34s both;
   overflow: hidden;
 }
 .card::before {
@@ -147,17 +158,20 @@ body {
 .field-label { display: block; font-weight: 700; margin-bottom: 8px; color: var(--ink); }
 .hint { font-weight: 400; color: var(--text-dim); }
 
-input[type="text"] {
+input[type="text"], input[type="search"] {
   width: 100%; padding: 13px 15px; font-size: 1rem; color: var(--ink);
   background: #fff;
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none; appearance: none;
 }
-input[type="text"]:focus {
+input[type="text"]:focus, input[type="search"]:focus {
   outline: none; border-color: var(--steel);
   box-shadow: 0 0 0 4px rgba(18,130,162,.16);
 }
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; height: 16px; width: 16px; background:
+  no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='%236c7488' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); cursor: pointer; }
 
 /* ── Week navigator ─────────────────────────────────────────── */
 .week-nav {
@@ -449,7 +463,7 @@ input[type="text"]:focus {
   .card { padding: 16px; border-radius: 16px; }
   .card-title { font-size: 1.1rem; }
 
-  input[type="text"] { padding: 14px; font-size: 16px; } /* 16px avoids iOS zoom-on-focus */
+  input[type="text"], input[type="search"] { padding: 14px; font-size: 16px; } /* 16px avoids iOS zoom-on-focus */
 
   .week-nav { padding: 7px 8px; margin-bottom: 16px; }
   .week-nav-date { font-size: .95rem; }

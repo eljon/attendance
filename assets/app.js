@@ -227,6 +227,27 @@ function setProgress(done) {
     ago === 0 ? "for this week" : `for week of ${shortDate(selectedWeek)}`;
 }
 
+// ── Remembered names (search suggestions) ────────────────────
+const NAMES_KEY = "attendance.names";
+const nameDatalist = document.getElementById("name-suggestions");
+
+function loadLocalNames() {
+  try { return JSON.parse(localStorage.getItem(NAMES_KEY) || "[]"); } catch { return []; }
+}
+function saveLocalName(name) {
+  const set = new Set(loadLocalNames());
+  set.add(name);
+  try { localStorage.setItem(NAMES_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+// Merge names typed on this device with every name in the database.
+function updateNameSuggestions() {
+  if (!nameDatalist) return;
+  const set = new Set(loadLocalNames());
+  records.forEach((r) => { if (r.name) set.add(r.name); });
+  const names = [...set].sort((a, b) => a.localeCompare(b));
+  nameDatalist.innerHTML = names.map((n) => `<option value="${escapeHtml(n)}"></option>`).join("");
+}
+
 // ── Submit ───────────────────────────────────────────────────
 const form = document.getElementById("checkin-form");
 const formStatus = document.getElementById("form-status");
@@ -257,6 +278,8 @@ form.addEventListener("submit", async (e) => {
 
     // Reflect the new check-ins locally, then re-render.
     records.push({ timestamp: new Date().toISOString(), name, organizations: orgs, week: selectedWeek });
+    saveLocalName(name);
+    updateNameSuggestions();
     setStatus(`✓ Recorded — thank you, ${name}!`, "ok");
     document.getElementById("name").value = name; // keep the name for further entries
     renderCheckin();
@@ -284,7 +307,7 @@ const historyGrid = document.getElementById("history-grid");
 const connStatus = document.getElementById("conn-status");
 document.getElementById("refresh-btn").addEventListener("click", () => {
   historyGrid.innerHTML = `<p class="muted">Loading…</p>`;
-  loadRecords().then(() => { renderHistory(); renderCheckin(); renderStats(); }).catch((err) => {
+  loadRecords().then(() => { renderHistory(); renderCheckin(); renderStats(); updateNameSuggestions(); }).catch((err) => {
     historyGrid.innerHTML = `<p class="muted">Could not load: ${escapeHtml(err.message)}</p>`;
   });
 });
@@ -497,9 +520,9 @@ function escapeHtml(str) {
     raf = 0;
     orbs.forEach((o) => {
       const d = parseFloat(o.dataset.depth || "0.3");
-      o.style.transform = `translate3d(${mx * d * 46}px, ${my * d * 46 + sy * d * 0.35}px, 0)`;
+      o.style.transform = `translate3d(${mx * d * 80}px, ${my * d * 80 + sy * d * 0.55}px, 0)`;
     });
-    if (header) header.style.transform = `translateY(${sy * -0.12}px)`;
+    if (header) header.style.transform = `translateY(${sy * -0.22}px)`;
   }
   function schedule() { if (!raf) raf = requestAnimationFrame(apply); }
 
@@ -513,10 +536,11 @@ function escapeHtml(str) {
 
 // ── Init ─────────────────────────────────────────────────────
 renderCheckin();
+updateNameSuggestions();
 positionIndicator(document.querySelector(".tab.is-active"));
 if (IS_CONFIGURED) {
   loadRecords()
-    .then(() => { renderCheckin(); renderHistory(); renderStats(); })
+    .then(() => { renderCheckin(); renderHistory(); renderStats(); updateNameSuggestions(); })
     .catch((err) => {
       loaded = true;
       renderCheckin();
